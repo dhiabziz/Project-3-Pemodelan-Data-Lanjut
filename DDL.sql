@@ -22,6 +22,55 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
+-- Name: penggunaan_lahan_2021; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.penggunaan_lahan_2021 (
+    objectid integer NOT NULL,
+    d_pengguna character varying(254),
+    d_sub_peng character varying(254),
+    d_kegiatan character varying(254),
+    shape_leng double precision,
+    shape_le_1 double precision,
+    wadmkd character varying(50),
+    wadmkc character varying(50),
+    wadmkk character varying(50),
+    kdepum character varying(13),
+    kdcpum character varying(8),
+    kdpkab character varying(5),
+    luaswh double precision,
+    srs_id character varying(50),
+    shape_length double precision,
+    shape_area double precision,
+    geom public.geometry(MultiPolygonZM,32748)
+);
+
+
+ALTER TABLE public.penggunaan_lahan_2021 OWNER TO postgres;
+
+--
+-- Name: penggunaan_lahan_2021_objectid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.penggunaan_lahan_2021_objectid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.penggunaan_lahan_2021_objectid_seq OWNER TO postgres;
+
+--
+-- Name: penggunaan_lahan_2021_objectid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.penggunaan_lahan_2021_objectid_seq OWNED BY public.penggunaan_lahan_2021.objectid;
+
+
+--
 -- Name: relka_ar_1k; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -160,6 +209,13 @@ ALTER SEQUENCE public.stasiunka_pt_1k_objectid_seq OWNED BY public.stasiunka_pt_
 
 
 --
+-- Name: penggunaan_lahan_2021 objectid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.penggunaan_lahan_2021 ALTER COLUMN objectid SET DEFAULT nextval('public.penggunaan_lahan_2021_objectid_seq'::regclass);
+
+
+--
 -- Name: relka_ar_1k objectid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -178,6 +234,14 @@ ALTER TABLE ONLY public.relka_ln_1k ALTER COLUMN objectid SET DEFAULT nextval('p
 --
 
 ALTER TABLE ONLY public.stasiunka_pt_1k ALTER COLUMN objectid SET DEFAULT nextval('public.stasiunka_pt_1k_objectid_seq'::regclass);
+
+
+--
+-- Name: penggunaan_lahan_2021 penggunaan_lahan_2021_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.penggunaan_lahan_2021
+    ADD CONSTRAINT penggunaan_lahan_2021_pkey PRIMARY KEY (objectid);
 
 
 --
@@ -202,6 +266,13 @@ ALTER TABLE ONLY public.relka_ln_1k
 
 ALTER TABLE ONLY public.stasiunka_pt_1k
     ADD CONSTRAINT stasiunka_pt_1k_pkey PRIMARY KEY (objectid);
+
+
+--
+-- Name: penggunaan_lahan_2021_geom_geom_idx; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX penggunaan_lahan_2021_geom_geom_idx ON public.penggunaan_lahan_2021 USING gist (geom);
 
 
 --
