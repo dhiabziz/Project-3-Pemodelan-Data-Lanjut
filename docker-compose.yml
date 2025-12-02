@@ -1,0 +1,14 @@
+version: '3.8'
+services:
+  db:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: postgis_tugas_spasial
+    restart: always
+    environment:
+      POSTGRES_USER: postgres         # USERNAME DB
+      POSTGRES_PASSWORD: postgres # PASSWORD DB
+      POSTGRES_DB: postgres          # NAMA DATABASE
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data # Volume data agar data tidak hilang
+    ports:
+      - "5432:5432" # Port default
