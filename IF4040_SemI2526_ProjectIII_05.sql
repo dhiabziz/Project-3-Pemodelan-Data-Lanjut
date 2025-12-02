@@ -309,23 +309,23 @@ CREATE INDEX stasiunka_pt_1k_geom_geom_idx ON public.stasiunka_pt_1k USING gist 
 --
 
 -- 1. Stasiun kereta api mana saja yang namanya mengandung kata 'Pasar' atau 'Kota'?
-SELECT "NAMOBJ" FROM stasiun_kereta_1k
-WHERE "NAMOBJ" LIKE '%PASAR%' OR "NAMOBJ" LIKE '%KOTA%';
+SELECT namobj FROM stasiunka_pt_1k
+WHERE namobj LIKE '%PASAR%' OR namobj LIKE'%KOTA%';
 
 -- 2. Apa saja 5 jenis penggunaan lahan yang paling banyak di Jakarta?
-SELECT "D_SUB_PENG", count(*) as jumlah
+SELECT d_sub_peng, count(*) AS jumlah
 FROM penggunaan_lahan_2021
-GROUP BY "D_SUB_PENG"
+GROUP BY d_sub_peng
 ORDER BY jumlah DESC
 LIMIT 5;
 
 -- 3. Bagaimana distribusi jumlah poligon penggunaan lahan untuk setiap Kota/Kabupaten?
 SELECT 
-    "WADMKK",
+    wadmkk,
     COUNT(*) AS jumlah_poligon
 FROM penggunaan_lahan_2021
-WHERE "WADMKK" IS NOT NULL
-GROUP BY "WADMKK"
+WHERE wadmkk IS NOT NULL
+GROUP BY wadmkk
 ORDER BY jumlah_poligon DESC;
 
 --
@@ -453,7 +453,14 @@ JOIN stasiunka_pt_1k st
   ON ST_Intersects(st.geom, ar.geom)
 WHERE st.namobj = 'STASIUN JATINEGARA';
 
--- 3. [DIDIT]
+-- 3. Berapa total panjang seluruh jalur rel kereta di DKI Jakarta?
+SELECT 
+    COUNT(*) AS jumlah_segmen,
+    ROUND(SUM(ST_Length(ST_Transform(geom, 32748)))::numeric, 2) AS total_panjang_m,
+    ROUND((SUM(ST_Length(ST_Transform(geom, 32748))) / 1000)::numeric, 2) AS total_panjang_km,
+    ST_GeometryType(ST_Union(geom)) AS tipe_geometri,
+    ST_NPoints(ST_Union(geom)) AS jumlah_titik
+FROM relka_ln_1k;
 
 -- 4. Berapa total luas area perumahan/hunian di setiap kota administrasi Jakarta setelah dilakukan union berdasarkan wilayah kota?
 SELECT 
