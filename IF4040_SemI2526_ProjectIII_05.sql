@@ -300,3 +300,169 @@ CREATE INDEX stasiunka_pt_1k_geom_geom_idx ON public.stasiunka_pt_1k USING gist 
 -- PostgreSQL database dump complete
 --
 
+---
+--- SQL QUERIES
+---
+
+--
+-- Pertanyaan Deskriptif dan Agregat (Atribut)
+--
+
+-- 1. Stasiun kereta api mana saja yang namanya mengandung kata 'Pasar' atau 'Kota'?
+SELECT "NAMOBJ" FROM stasiun_kereta_1k
+WHERE "NAMOBJ" LIKE '%PASAR%' OR "NAMOBJ" LIKE '%KOTA%';
+
+-- 2. Apa saja 5 jenis penggunaan lahan yang paling banyak di Jakarta?
+SELECT "D_SUB_PENG", count(*) as jumlah
+FROM penggunaan_lahan_2021
+GROUP BY "D_SUB_PENG"
+ORDER BY jumlah DESC
+LIMIT 5;
+
+-- 3. Bagaimana distribusi jumlah poligon penggunaan lahan untuk setiap Kota/Kabupaten?
+SELECT 
+    "WADMKK",
+    COUNT(*) AS jumlah_poligon
+FROM penggunaan_lahan_2021
+WHERE "WADMKK" IS NOT NULL
+GROUP BY "WADMKK"
+ORDER BY jumlah_poligon DESC;
+
+--
+-- Pertanyaan Spasial Murni
+--
+
+-- 1. Berapa total panjang seluruh jaringan rel kereta api yang ada di Jakarta?
+SELECT 
+    SUM(ST_Length(ST_Transform(geom, 32748))) / 1000 AS total_panjang_km
+FROM relka_ln_1k;
+
+-- 2. Objek area rel kereta manakah yang memiliki ukuran paling luas, dan berapa luasnya?
+SELECT 
+    fcode, metadata, srs_id,
+    ST_Area(ST_Transform(geom, 32748)) AS luas_m2
+FROM relka_ar_1k
+WHERE geom IS NOT NULL
+ORDER BY luas_m2 DESC NULLS LAST
+LIMIT 1;
+
+-- 3. Pasangan stasiun mana saja yang memiliki jarak sangat dekat satu sama lain (kurang dari 1 kilometer)?
+SELECT 
+    a.namobj AS stasiun_1,
+    b.namobj AS stasiun_2,
+    ST_Distance(ST_Transform(a.geom, 32748), ST_Transform(b.geom, 32748)) AS jarak_meter
+FROM stasiunka_pt_1k a, stasiunka_pt_1k b
+WHERE a.objectid < b.objectid
+  AND ST_DWithin(ST_Transform(a.geom, 32748), ST_Transform(b.geom, 32748), 1000)
+ORDER BY jarak_meter ASC;
+
+--
+-- Pertanyaan Hybrid dan Analisis Lintas Tabel
+--
+
+-- 1. Stasiun kereta api mana saja yang memiliki fasilitas pendidikan terdekat (radius 300m), dan apa jenis pendidikannya? 
+SELECT 
+    s.namobj AS nama_stasiun,
+    p.wadmkd AS kelurahan,
+    p.wadmkc AS kecamatan,
+    p.d_kegiatan AS jenis_pendidikan,
+    ROUND(ST_Distance(
+        ST_Transform(ST_SetSRID(s.geom, 4326), 32748), 
+        p.geom
+    )::numeric, 2) AS jarak_meter
+FROM stasiunka_pt_1k s, penggunaan_lahan_2021 p
+WHERE p.d_sub_peng = 'PELAYANAN PENDIDIKAN'
+  AND ST_DWithin(
+        ST_Transform(ST_SetSRID(s.geom, 4326), 32748), 
+        p.geom, 
+        300
+      )
+ORDER BY jarak_meter
+LIMIT 10;
+
+-- 2. Stasiun kereta api mana saja yang memiliki area pertokoan/mall/pasar terdekat? 
+SELECT 
+    s.namobj AS nama_stasiun,
+    p.wadmkd AS kelurahan,
+    p.wadmkc AS kecamatan,
+    p.d_kegiatan AS jenis_usaha,
+    ROUND(ST_Distance(
+        ST_Transform(ST_SetSRID(s.geom, 4326), 32748), 
+        p.geom
+    )::numeric, 2) AS jarak_meter
+FROM stasiunka_pt_1k s, penggunaan_lahan_2021 p
+WHERE p.d_pengguna = 'USAHA'
+  AND p.d_kegiatan IN ('MALL', 'PERTOKOAN', 'PASAR')
+  AND ST_DWithin(
+        ST_Transform(ST_SetSRID(s.geom, 4326), 32748), 
+        p.geom, 
+        200
+      )
+ORDER BY jarak_meter
+LIMIT 10;
+
+-- 3. Jalur rel mana saja yang melintasi atau membelah area yang diperuntukkan sebagai 'Ruang Terbuka Hijau'?
+SELECT 
+    ln.objectid AS id_jalur_rel,
+    p.wadmkd AS kelurahan,
+    p.wadmkc AS kecamatan,
+    p.d_kegiatan AS jenis_rth,
+    ROUND(p.shape_area::numeric, 2) AS luas_rth_m2
+FROM relka_ln_1k ln, penggunaan_lahan_2021 p
+WHERE p.d_kegiatan IN (
+    'HIJAU LAINNYA', 'TAMAN KOTA', 'TAMAN REKREASI', 
+    'TAMAN BERMAIN LINGKUNGAN', 'TAMAN HIBURAN', 'TAMAN PERKEMAHAN'
+)
+AND ST_DWithin(
+    ST_Transform(ST_SetSRID(ln.geom, 4326), 32748), 
+    p.geom, 
+    10
+)
+ORDER BY p.shape_area DESC
+LIMIT 10;
+
+--
+-- Pertanyaan Interaktif
+--
+-- (Tidak ada query SQL karena ini terkait dengan UI/UX peta interaktif)
+
+--
+-- Agregasi Spasial
+--
+
+-- 1. Bagaimana cara mendapatkan agregat penggunaan lahan berdasarkan jenis penggunaannya?
+SELECT 
+    row_number() OVER () AS id,
+    d_pengguna,
+    ST_Multi(ST_Union(geom)) AS geom_dissolved,
+    (ST_Area(ST_Union(geom))/10000) AS total_luas_ha 
+FROM public.penggunaan_lahan_2021
+WHERE d_pengguna IS NOT NULL
+GROUP BY d_pengguna;
+
+-- 2. Jalur rel kereta mana saja yang melalui Stasiun Jatinegara?
+SELECT 
+	row_number() OVER () AS id,
+    ln.geom AS rel_geom,
+    st.geom AS stasiun_geom,
+    st.namobj AS nama_stasiun
+FROM relka_ln_1k ln
+JOIN relka_ar_1k ar
+  ON ST_Intersects(ln.geom, ar.geom)
+JOIN stasiunka_pt_1k st
+  ON ST_Intersects(st.geom, ar.geom)
+WHERE st.namobj = 'STASIUN JATINEGARA';
+
+-- 3. [DIDIT]
+
+-- 4. Berapa total luas area perumahan/hunian di setiap kota administrasi Jakarta setelah dilakukan union berdasarkan wilayah kota?
+SELECT 
+    wadmkk AS "Kota",
+    COUNT(*) AS "Jumlah Polygon Perumahan",
+    ROUND(SUM(luaswh)::numeric, 2) AS "Total Luas (ha)",
+    ST_Union(geom) AS geom
+FROM penggunaan_lahan_2021
+WHERE (d_pengguna LIKE '%HUNIAN%')
+  AND wadmkk IS NOT NULL
+GROUP BY wadmkk
+ORDER BY "Total Luas (ha)" DESC;
